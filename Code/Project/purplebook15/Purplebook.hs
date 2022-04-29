@@ -378,11 +378,27 @@ data Optional a =
        Nada
      | Only a
      deriving (Eq, Show)
+
+genOptional :: Arbitrary a => Gen (Optional a) 
+genOptional = do
+    a <- arbitrary
+    elements [Nada, Only a]
+
+-- genOptional :: Gen (Optional String)
+-- genOptional = do
+--     a <- arbitrary
+--     elements [Nada, Only a]
+
+instance Arbitrary a => Arbitrary (Optional a) where 
+    arbitrary = genOptional
+-- *Purplebook> type G = Gen (Optional Int)
+-- *Purplebook> sample' (genOptional :: G)
+-- [Only 0,Nada,Only 2,Only 0,Only (-4),Only (-8),Only (-8),Only 9,Nada,Only 17,Nada]
+
 instance Monoid a
      => Monoid (Optional a) where
   mempty = Nada -- undefined
   -- mappend = undefined
-
 
 instance Semigroup a => Semigroup (Optional a) where
   Nada <> (Only a) = Only a   
@@ -391,16 +407,58 @@ instance Semigroup a => Semigroup (Optional a) where
   (Only a) <> Nada = Only a                               
   Nada <> Nada = Nada
 
--- Gave error w/o the Semi group.Below link gave solution
+only15 = (Only (Sum 7)) <> (Only (Sum 8))
+-- *Purplebook> only15
+-- Only (Sum {getSum = 15})
+
+-- intGenOptional :: Gen (Optional (Sum Int))
+-- intGenOptional = genOptional
+
+-- *Purplebook> sample' intGenOptional
+-- [Only (Sum {getSum = 0}),Only (Sum {getSum = -1}),Nada,Nada,Nada,Nada,Nada,Nada,Only (Sum {getSum = 14}),Only (Sum {getSum = 1}),Only (Sum {getSum = -3})]
+
+
+propOptionalCommutative :: (Eq a, Semigroup a) => a -> a -> Bool
+propOptionalCommutative a b = a <> b  == b <> a
+pp :: IO ()
+pp = quickCheck ( propOptionalCommutative :: (Optional (Sum Int) -> Optional (Sum Int) -> Bool))
+-- *Purplebook> verboseCheck ( propOptionalCommutative :: (Optional (Sum Int) -> Optional (Sum Int) -> Bool))
+-- Passed:  
+-- Only (Sum {getSum = 0})
+-- Only (Sum {getSum = 0})
+
+-- Passed: 
+-- Only (Sum {getSum = 0})
+-- Nada
+-- .....
+-- ....
+-- +++ OK, passed 100 tests.
+
+chM :: IO ()
+chM = quickCheck ( propOptionalCommutative :: (Optional String -> Optional String -> Bool))
+-- this will fail since mappend with String is NOT commutative
+-- *Purplebook> chM
+-- *** Failed! Falsified (after 12 tests):  
+-- Only "\7914\a\988970\DEL"
+-- Only "Gy3\62851!"
+
+-- Gave error w/o the Semi group.Below link gave solution - thats cause Monoid means Semegroup has to exist.
 -- https://stackoverflow.com/questions/52237895/could-not-deduce-semigroup-optional-a-arising-from-the-superclasses-of-an-in
 
 onlySum = Only (Sum 1)
 opt1 = onlySum `mappend` onlySum
 -- *Purplebook> opt1
 -- Only (Sum {getSum = 2})
-onlyFour = Only (Product 4)
-onlyTwo = Only (Product 2)
-prodOpt1 = onlyFour `mappend` onlyTwo
+onlyFourP = Only (Product 4)
+onlyTwoP = Only (Product 2)
+prodOpt1 = onlyFourP `mappend` onlyTwoP
+
+
+
+propMonoidAssocOptionalProd a b = 
+    (Only (Product a)) `mappend` (Only (Product b)) == (Only (Product b)) `mappend` (Only (Product a))
+-- *Purplebook> quickCheck propMonoidAssocOptionalProd
+-- +++ OK, passed 100 tests.
 
 sumNada = Only (Sum 1) `mappend` Nada
 -- *Purplebook> sumNada 
@@ -568,6 +626,29 @@ quickcheck3 = quickCheck (monoidAssoc :: MABl)
 -- The Eq class defines equality (==) and inequality (/=). All the basic datatypes exported by the Prelude are instances of Eq, 
 --     and Eq may be derived for any datatype whose constituents are also instances of Eq.
 
+-- *Purplebook> verboseCheck (monoidAssoc :: MA')
+-- Passed:  
+-- Sum {getSum = 0}
+-- Sum {getSum = 0}
+-- Sum {getSum = 0}
+
+-- Passed: 
+-- Sum {getSum = 0}
+-- Sum {getSum = 1}
+-- Sum {getSum = -1}
+
+-- Passed:  
+-- Sum {getSum = 2}
+-- Sum {getSum = 1}
+-- Sum {getSum = 2}
+-- ....... .....
+-- ....... .....
+-- +++ OK, passed 100 tests.
+
+
+
+
+
 
 -- Testing left and right identity
 
@@ -606,9 +687,17 @@ instance Arbitrary Bull where
 instance Semigroup Bull where
     (<>) _ _ = Fools
 
+-- *Purplebook> Fools <> Twoo
+-- Fools
+-- *Purplebook> Twoo <> Twoo
+-- Fools
+
 instance Monoid Bull where
     mempty = Fools
-
+-- *Purplebook> Fools <> mempty
+-- Fools
+-- *Purplebook> Twoo <> mempty    --- that's why its not Identity
+-- Fools
 
 type BullMappend =
     Bull -> Bull -> Bull -> Bool
@@ -655,12 +744,29 @@ instance Semigroup (First' a) where
 instance Monoid (First' a) where
     mempty = First' Nada 
 
+genFirst' :: Arbitrary a => Gen (First' a)
+genFirst' = do 
+    a <- arbitrary
+    return (First' a)
+-- *Purplebook> sample' (genFirst' :: Gen (First' (Sum Int)))
+-- [First' {getFirst' = Nada},First' {getFirst' = Nada},First' {getFirst' = Only (Sum {getSum = -2})},
+--      First' {getFirst' = Nada},First' {getFirst' = Only (Sum {getSum = -2})},First' {getFirst' = Nada},
+--      First' {getFirst' = Nada},First' {getFirst' = Nada},First' {getFirst' = Only (Sum {getSum = -7})},
+------- First' {getFirst' = Only (Sum {getSum = -1})},First' {getFirst' = Nada}]
 
-instance Arbitrary a =>
-        Arbitrary (First' a) where
-    arbitrary =
-        frequency [(1, return Nothing),
-                  (3, liftM Just arbitrary)]
+
+instance Arbitrary a => Arbitrary (First' a) where
+    arbitrary = genFirst'
+
+
+
+
+
+-- instance Arbitrary a =>
+--         Arbitrary (First' a) where
+--     arbitrary =
+--         frequency [(1, return First' Nada),
+--                   (3, liftM First'  arbitrary)]
 
 
 -- instance Arbitrary (First' a) where
@@ -708,6 +814,26 @@ type FirstMappend =
 type FstId =
    First' String -> Bool
 
+-- " Monoid Assoc FirstMappend test: "
+-- +++ OK, passed 100 tests.
+-- " Monoid Left Identity test: FstId "
+-- +++ OK, passed 100 tests.
+-- " Monoid Right Identity test: FstId "
+-- +++ OK, passed 100 tests.
+
+
+onlyOne = First' (Only 1)
+onlyTwo = First' (Only 2)
+nada = First' Nada
+
+-- *Purplebook> onlyOne `mappend` nada
+-- First' {getFirst' = Only 1}
+-- *Purplebook> nada `mappend` nada
+-- First' {getFirst' = Nada}
+-- *Purplebook> nada `mappend` onlyTwo
+-- First' {getFirst' = Only 2}
+-- *Purplebook> onlyOne `mappend` onlyTwo
+-- First' {getFirst' = Only 1}
 
 
 -- 15.13 Semigroup
@@ -742,14 +868,39 @@ newtype NonEmpty1 a =
     NonEmpty1 (a, [a])
     deriving (Eq, Ord, Show)
 
+
+-- Prefix, works.
+data P =
+    Prefix Int String deriving Show
+-- *Purplebook> x = Prefix 5 "Rafa"
+-- *Purplebook> x
+-- Prefix 5 "Rafa"
+
+-- Infix, works.
+data Q =
+    Int :!!: String deriving Show
+-- *Purplebook> q = 5 :!!: "rafa"
+-- *Purplebook> q
+-- 5 :!!: "rafa"
+
+
 prodNE1 = 1 :| [2,3,4]
+-- *Purplebook> prodNE1
+-- 1 :| [2,3,4]
 prodNE2 = 5 :| [6,7,8]
 prodNE3 = prodNE1 <> prodNE2
+-- *Purplebook> prodNE3
+-- 1 :| [2,3,4,5,6,7,8]
 -- prodElm1 = head 
 headProdNE3 = N.head prodNE3
+-- *Purplebook> headProdNE3
+-- 1
 tailProdNE3 = N.tail prodNE3
+-- *Purplebook> tailProdNE3
+-- [2,3,4,5,6,7,8]
 lenProdNE3 = N.length prodNE3
-
+-- *Purplebook> lenProdNE3
+-- 8
 
 -- Prelude Data.List.NonEmpty Data.Semigroup> :t 1 :| [2, 3]
 -- 1 :| [2, 3] :: Num a => NonEmpty a
@@ -762,11 +913,21 @@ lenProdNE3 = N.length prodNE3
 
 -- Semigroup exercises
 
+-- Given a datatype, implement the Semigroup instance. Add Semigroup constraints to type variables where needed. Use the
+-- Semigroup class from base or write your own. When we use <>, we mean the infix mappend operation from the Semigroup type
+-- class.
+-- Note - We’re not always going to derive every instance you may want or need in the datatypes we provide for exercises.
+-- We expect you to know what you need and to take care of it yourself by this point.
+
+-- Ex 1 - 
+-- Validate all of your instances with QuickCheck. Since the only law is associativity, that’s the only property you need
+-- to reuse. Keep in mind that you’ll potentially need to import the modules for Monoid and Semigroup and to avoid
+-- naming conflicts for <>, depending on your version of GHC:
+
 data Trivial = Trivial deriving (Eq, Show)
 
 instance Semigroup Trivial where
-    _ <> _ = undefined
-
+    Trivial <> Trivial = Trivial
 
 instance Arbitrary Trivial where
     arbitrary = return Trivial
@@ -780,10 +941,97 @@ semigroupAssoc a b c =
 type TrivAssoc =
     Trivial -> Trivial -> Trivial -> Bool
     
-
-
+sgAssoc :: IO ()
+sgAssoc = quickCheck ( semigroupAssoc :: (Trivial -> Trivial -> Trivial -> Bool))
+sgTrvAssoc = quickCheck ( semigroupAssoc :: TrivAssoc)
+-- *Purplebook> sgAssoc 
+-- +++ OK, passed 100 tests.
+-- *Purplebook> sgTrvAssoc 
+-- +++ OK, passed 100 tests.
+-- reference chM = quickCheck ( propOptionalCommutative :: (Optional String -> Optional String -> Bool))
 -- https://stackoverflow.com/questions/39232294/how-to-write-a-semigroup-instance
 
+
+
+
+
+-- Ex 2. 
+newtype Identity a = Identity a deriving (Eq , Show)
+id1 = id (Sum 1)
+id2 = id (Sum 2)
+
+xid5 = Identity 5
+
+genIdentity :: Arbitrary a => Gen (Identity a)
+genIdentity = do
+    a <- arbitrary 
+    return (Identity a)
+
+instance Semigroup a => Semigroup (Identity a) where
+    Identity a <> Identity a' = Identity (a <> a')
+instance Arbitrary a => Arbitrary (Identity a) where 
+    arbitrary = genIdentity
+
+type IdAssocSumInt =
+    Identity (Sum Int) -> Identity (Sum Int) -> Identity (Sum Int) -> Bool
+
+
+
+type IdAssocString =
+    Identity String -> Identity String -> Identity String -> Bool
+
+sgIdAssocSumInt :: IO ()
+sgIdAssocSumInt = quickCheck ( semigroupAssoc :: IdAssocSumInt)
+-- *Purplebook> sgIdAssocSumInt 
+-- +++ OK, passed 100 tests.
+
+sgIdAssocString = quickCheck ( semigroupAssoc :: IdAssocString)
+-- *Purplebook> sgIdAssocString
+-- +++ OK, passed 100 tests.
+
+
+-- Ex 3. data Two a b = Two a b
+-- Hint: Ask for another Semigroup instance.
+data Two a b = Two a b deriving (Eq, Show)
+
+genTwo :: (Arbitrary a, Arbitrary b)  => Gen (Two a b)
+genTwo = do
+    a <- arbitrary 
+    b <- arbitrary
+    return (Two a b)
+
+instance (Semigroup a, Semigroup b) => Semigroup (Two a b) where
+    (Two a b) <> (Two a' b') = Two (a <> a') (b <> b')
+
+instance (Arbitrary a, Arbitrary b) => Arbitrary (Two a b) where
+    arbitrary = genTwo
+
+type TwoAssocSumInt =
+    Two (Sum Int) (Sum Int) -> Two (Sum Int) (Sum Int) -> Two (Sum Int) (Sum Int) -> Bool
+
+
+sgTwoAssocSumInt = quickCheck ( semigroupAssoc :: TwoAssocSumInt)
+-- *Purplebook> sgTwoAssocSumInt
+-- +++ OK, passed 100 tests.
+
+-- verboseCheck
+-- *Purplebook> verboseCheck ( semigroupAssoc :: TwoAssocSumInt)
+-- Passed:   
+-- Two (Sum {getSum = 84}) (Sum {getSum = 7})
+-- Two (Sum {getSum = 19}) (Sum {getSum = -38})
+-- Two (Sum {getSum = -67}) (Sum {getSum = -92})
+-- +++ OK, passed 100 tests.
+
+type TwoAssocProdInt =
+    Two (Product Int) (Product Int) -> Two (Product Int) (Product Int) -> Two (Product Int) (Product Int) -> Bool
+
+sgTwoAssocProductInt = quickCheck ( semigroupAssoc :: TwoAssocProdInt)
+-- *Purplebook> sgTwoAssocProductInt
+-- +++ OK, passed 100 tests.
+-- *Purplebook> Two (Product {getProduct = -57}) (Product {getProduct = 44}) <> Two (Product {getProduct = 59}) (Product {getProduct = -86})
+-- Two (Product {getProduct = -3363}) (Product {getProduct = -3784})
+-- *Purplebook> Two (Product {getProduct = 59}) (Product {getProduct = -86}) <> Two (Product {getProduct = -57}) (Product {getProduct = 44})
+-- Two (Product {getProduct = -3363}) (Product {getProduct = -3784})
 
 
 
@@ -843,6 +1091,14 @@ main = do
     putStrLn ("prodNE3 tail   =   " ++ show(tailProdNE3))
     putStrLn ("prodNE3 length   =   " ++ show(lenProdNE3))
     quickCheck (semigroupAssoc :: TrivAssoc)
+    print (" Monoid Assoc FirstMappend test: ")
+    quickCheck (monoidAssoc :: FirstMappend)
+    print (" Monoid Left Identity test: FstId ")
+    quickCheck (monoidLeftIdentity :: FstId)
+    print (" Monoid Right Identity test: FstId ")
+    quickCheck (monoidRightIdentity :: FstId)
+    print (" SemiGroup associativity test: Trivial ")
+    quickCheck (semigroupAssoc :: TrivAssoc)
 
     -- verboseCheck monoidAssoc
     -- putStrLn ("QuickCheck associativity  = " ++ show(quickcheck1))
@@ -851,10 +1107,3 @@ main = do
     --   else putStrLn (" Success ")
     -- putStrLn (" First with both Nothing = " ++ show(first3))       -- Errors 
    -- print Nothing -- ERrors 
-
-    
-
-
-
-
-
