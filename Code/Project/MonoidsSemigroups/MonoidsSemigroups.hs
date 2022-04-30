@@ -1,8 +1,9 @@
 
-module Purplebook where 
+module MonoidsSemigroups where
 
 -- import Data.Semigroup as S     -- Since Data.Monid is already imported seems this one is not needed or creating conflict
 import Data.List.NonEmpty as N
+    ( length, tail, head, NonEmpty((:|)) )
 import Data.Monoid hiding ((<>))
 import Data.List as L
 
@@ -321,10 +322,10 @@ first3 = fir5 `mappend` fir6
 -- printFirst3 b = if b == First (Nothing)
 --                 then return()
 --                 else putStrLn (" Success First ")
-                
+
 
 foo :: Int -> IO ()
-foo a 
+foo a
    | a > 100 = return ()    -- Does not print anything
    | otherwise = putStrLn "YES!!!"
 
@@ -379,7 +380,7 @@ data Optional a =
      | Only a
      deriving (Eq, Show)
 
-genOptional :: Arbitrary a => Gen (Optional a) 
+genOptional :: Arbitrary a => Gen (Optional a)
 genOptional = do
     a <- arbitrary
     elements [Nada, Only a]
@@ -389,7 +390,7 @@ genOptional = do
 --     a <- arbitrary
 --     elements [Nada, Only a]
 
-instance Arbitrary a => Arbitrary (Optional a) where 
+instance Arbitrary a => Arbitrary (Optional a) where
     arbitrary = genOptional
 -- *Purplebook> type G = Gen (Optional Int)
 -- *Purplebook> sample' (genOptional :: G)
@@ -401,10 +402,10 @@ instance Monoid a
   -- mappend = undefined
 
 instance Semigroup a => Semigroup (Optional a) where
-  Nada <> (Only a) = Only a   
+  Nada <> (Only a) = Only a
   (Only a) <> (Only a') = Only (a <> a')
   -- mempty <> (Only a) = Only a                             
-  (Only a) <> Nada = Only a                               
+  (Only a) <> Nada = Only a
   Nada <> Nada = Nada
 
 only15 = (Only (Sum 7)) <> (Only (Sum 8))
@@ -455,7 +456,7 @@ prodOpt1 = onlyFourP `mappend` onlyTwoP
 
 
 
-propMonoidAssocOptionalProd a b = 
+propMonoidAssocOptionalProd a b =
     (Only (Product a)) `mappend` (Only (Product b)) == (Only (Product b)) `mappend` (Only (Product a))
 -- *Purplebook> quickCheck propMonoidAssocOptionalProd
 -- +++ OK, passed 100 tests.
@@ -502,21 +503,21 @@ sum21Nada = Only2 [1] `mappend` Nada2
 -- *Purplebook> sum21Nada
 -- Nada2
 
-sum21_2 = Only2 [1] `mappend` Only2 [2] 
+sum21_2 = Only2 [1] `mappend` Only2 [2]
 -- *Purplebook> sum21_2
 -- Only2 [1,2]
 
 
 data BlockChainX a b c =
          BlockChainX { blockNo' :: a,
-                        blockHeader' :: b, 
-                        data1' :: c} 
+                        blockHeader' :: b,
+                        data1' :: c}
                     deriving (Eq, Show)
 
 data BlockChain a =
          BlockChain { blockNo :: a,
-                        blockHeader :: a, 
-                        data1 :: a} 
+                        blockHeader :: a,
+                        data1 :: a}
                     deriving (Eq, Show)
 
 instance (Num a, Ord a, Enum a) => Semigroup (BlockChain a) where
@@ -582,10 +583,10 @@ madlibbinBetter' :: Exclamation
                  -> Adjective
                  -> String
 
-madlibbinBetter' e adv noun adj = 
+madlibbinBetter' e adv noun adj =
     mconcat [e, "! he said ", adv, " as he jumped into his car ", noun, " and drove off with his ", adj, " wife."]
 
-madlib1 = madlibbinBetter' "Blacky" "while" "Dodge" "pretty"  
+madlib1 = madlibbinBetter' "Blacky" "while" "Dodge" "pretty"
 -- *Purplebook> madlib1
 -- "Blacky! he said while as he jumped into his car Dodge and drove off with his pretty wife."
 
@@ -616,7 +617,7 @@ quickcheck2 = quickCheck (monoidAssoc :: MA')
 -- *Purplebook> quickcheck2
 -- +++ OK, passed 100 tests.
 
-type Bl = BlockChain Integer 
+type Bl = BlockChain Integer
 type MABl = Bl -> Bl -> Bl -> B
 quickcheck3 = quickCheck (monoidAssoc :: MABl)
 -- *Purplebook> quickcheck3
@@ -654,7 +655,7 @@ quickcheck3 = quickCheck (monoidAssoc :: MABl)
 
 
 monoidLeftIdentity :: (Eq m, Monoid m)
-                   => m 
+                   => m
                    -> Bool
 monoidLeftIdentity a = (mempty <> a) == a
 monoidRightIdentity :: (Eq m, Monoid m)
@@ -734,18 +735,18 @@ newtype First' a =
 
 instance Semigroup (First' a) where
 -- (<>) = undefined
-  First' Nada <> First' (Only a) = First' (Only a )  
+  First' Nada <> First' (Only a) = First' (Only a )
   First' (Only a) <> First' (Only a') = First' (Only a)
   -- mempty <> (Only a) = Only a                             
-  First' (Only a) <> First' Nada = First' (Only a )                              
+  First' (Only a) <> First' Nada = First' (Only a )
   First' Nada <> First' Nada = First' Nada
 
 
 instance Monoid (First' a) where
-    mempty = First' Nada 
+    mempty = First' Nada
 
 genFirst' :: Arbitrary a => Gen (First' a)
-genFirst' = do 
+genFirst' = do
     a <- arbitrary
     return (First' a)
 -- *Purplebook> sample' (genFirst' :: Gen (First' (Sum Int)))
@@ -940,7 +941,7 @@ semigroupAssoc a b c =
 
 type TrivAssoc =
     Trivial -> Trivial -> Trivial -> Bool
-    
+
 sgAssoc :: IO ()
 sgAssoc = quickCheck ( semigroupAssoc :: (Trivial -> Trivial -> Trivial -> Bool))
 sgTrvAssoc = quickCheck ( semigroupAssoc :: TrivAssoc)
@@ -964,12 +965,19 @@ xid5 = Identity 5
 
 genIdentity :: Arbitrary a => Gen (Identity a)
 genIdentity = do
-    a <- arbitrary 
+    a <- arbitrary
     return (Identity a)
+
+-- this is if you only need a sample for Identiry itself - not as monoid
+identityGenInt ::   Gen (Identity Int)
+identityGenInt = genIdentity
+-- *MonoidsSemigroups> sample' identityGenInt
+-- [Identity 0,Identity 1,Identity (-4),Identity (-2),Identity 2,Identity 5,Identity (-10),Identity 11,
+--       Identity (-3),Identity (-8),Identity 5]
 
 instance Semigroup a => Semigroup (Identity a) where
     Identity a <> Identity a' = Identity (a <> a')
-instance Arbitrary a => Arbitrary (Identity a) where 
+instance Arbitrary a => Arbitrary (Identity a) where
     arbitrary = genIdentity
 
 type IdAssocSumInt =
@@ -996,7 +1004,7 @@ data Two a b = Two a b deriving (Eq, Show)
 
 genTwo :: (Arbitrary a, Arbitrary b)  => Gen (Two a b)
 genTwo = do
-    a <- arbitrary 
+    a <- arbitrary
     b <- arbitrary
     return (Two a b)
 
@@ -1033,6 +1041,269 @@ sgTwoAssocProductInt = quickCheck ( semigroupAssoc :: TwoAssocProdInt)
 -- *Purplebook> Two (Product {getProduct = 59}) (Product {getProduct = -86}) <> Two (Product {getProduct = -57}) (Product {getProduct = 44})
 -- Two (Product {getProduct = -3363}) (Product {getProduct = -3784})
 
+
+-- Ex 4
+-- 4. data Three a b c = Three a b c
+data Three a b c = Three a b c deriving (Eq, Show)
+
+
+genThree :: (Arbitrary a,  Arbitrary b, Arbitrary c) => Gen (Three a b c)
+genThree = do
+    a <- arbitrary
+    b <- arbitrary
+    Three a b <$> arbitrary      -- <$> came from hint of Visual code editor
+
+-- semigroup we define just the mappend 
+instance (Semigroup a, Semigroup b, Semigroup c) => Semigroup (Three a b c) where
+    (Three a b c) <> (Three a' b' c') = Three (a <> a') (b <> b') (c <> c')
+
+instance (Arbitrary a, Arbitrary b, Arbitrary c) => Arbitrary (Three a b c) where
+    arbitrary = genThree
+
+-- declare a concretized type for quickCheck test
+type ThreeAssocSumInt =
+    Three (Sum Int) (Sum Int) (Sum Int) -> Three (Sum Int) (Sum Int) (Sum Int) -> Three (Sum Int) (Sum Int) (Sum Int) -> Bool
+
+sgThreeAssocSumInt = quickCheck ( semigroupAssoc :: ThreeAssocSumInt)
+-- *Purplebook> sgThreeAssocSumInt
+-- +++ OK, passed 100 tests.
+-- *Purplebook> verboseCheck ( semigroupAssoc :: ThreeAssocSumInt)
+-- Passed:   
+-- Three (Sum {getSum = 62}) (Sum {getSum = -77}) (Sum {getSum = -49})
+-- Three (Sum {getSum = 53}) (Sum {getSum = -19}) (Sum {getSum = 96})
+-- Three (Sum {getSum = -80}) (Sum {getSum = -34}) (Sum {getSum = -86})
+
+-- +++ OK, passed 100 tests.
+
+
+type ThreeAssocMaybeSumInt =
+    Three (Maybe (Sum Int)) (Maybe (Sum Int)) (Maybe (Sum Int)) -> 
+          Three (Maybe (Sum Int)) (Maybe (Sum Int)) (Maybe (Sum Int)) -> 
+                Three (Maybe (Sum Int)) (Maybe (Sum Int)) (Maybe (Sum Int)) -> Bool
+sgThreeAssocMaybeSumInt = quickCheck ( semigroupAssoc :: ThreeAssocMaybeSumInt)
+-- *Purplebook> sgThreeAssocMaybeSumInt
+-- +++ OK, passed 100 tests.
+
+-- verboseCheck ( semigroupAssoc :: ThreeAssocMaybeSumInt)
+-- Passed:   
+-- Three (Just (Sum {getSum = 42})) (Just (Sum {getSum = -94})) (Just (Sum {getSum = 67}))
+-- Three (Just (Sum {getSum = 25})) (Just (Sum {getSum = 68})) (Just (Sum {getSum = 69}))
+-- Three (Just (Sum {getSum = -96})) Nothing (Just (Sum {getSum = -44}))
+
+-- +++ OK, passed 100 tests.
+
+-- -- Ex 5- 
+-- -- 5. data Four a b c d = Four a b c d
+-- Similar to exercise 3 and 4. Will do later. 
+
+
+-- Ex 6. newtype BoolConj =
+-- BoolConj Bool
+-- What it should do:
+-- Prelude> (BoolConj True) <> (BoolConj True)
+-- BoolConj True
+-- Prelude> (BoolConj True) <> (BoolConj False)
+-- BoolConj False
+
+newtype BoolConj =
+    BoolConj Bool deriving (Eq, Show)
+
+-- genBoolConj :: Gen (BoolConj Bool)
+genBoolConj :: Gen BoolConj
+genBoolConj = do
+    a <- arbitrary
+    return (BoolConj a)
+
+-- define instance of arbitrary
+instance Arbitrary BoolConj where
+    arbitrary = genBoolConj 
+
+-- semigroup we define just the mappend 
+instance Semigroup (BoolConj) where
+    BoolConj True <> BoolConj True = BoolConj True
+    BoolConj False <> _ = BoolConj False
+    _ <> BoolConj False = BoolConj False
+
+-- declare a concretized type for quickCheck test
+type BoolConjAssoc =
+    BoolConj -> BoolConj -> BoolConj -> Bool
+
+boolConjAssoc = quickCheck ( semigroupAssoc :: BoolConjAssoc)
+-- *Purplebook> boolConjAssoc
+-- +++ OK, passed 100 tests.
+-- verboseCheck ( semigroupAssoc :: BoolConjAssoc)
+-- Passed:   
+-- BoolConj False
+-- BoolConj True
+-- BoolConj False
+-- +++ OK, passed 100 tests.
+
+-- *Purplebook> (BoolConj True) <> (BoolConj True)
+-- BoolConj True
+-- *Purplebook> (BoolConj True) <> (BoolConj False)
+-- BoolConj False
+
+
+-- Ex 7. newtype BoolDisj =
+-- BoolDisj Bool
+-- What it should do:
+-- Prelude> (BoolDisj True) <> (BoolDisj True)
+-- BoolDisj True
+-- Prelude> (BoolDisj True) <> (BoolDisj False)
+-- BoolDisj True
+
+
+newtype BoolDisj =
+    BoolDisj Bool deriving (Eq, Show)
+
+
+genBoolDisj :: Gen BoolDisj
+genBoolDisj = do
+    a <- arbitrary
+    return (BoolDisj a)
+
+-- define instance of arbitrary
+instance Arbitrary BoolDisj where
+    arbitrary = genBoolDisj
+
+-- semigroup we define just the mappend 
+instance Semigroup (BoolDisj) where
+    BoolDisj False <> BoolDisj False = BoolDisj False
+    _ <> _ = BoolDisj True
+
+
+-- declare a concretized type for quickCheck test
+type BoolDisjAssoc =
+    BoolDisj -> BoolDisj -> BoolDisj -> Bool
+
+boolDisjAssoc = quickCheck ( semigroupAssoc :: BoolDisjAssoc)
+-- *Purplebook> boolDisjAssoc
+-- +++ OK, passed 100 tests.
+-- *Purplebook> verboseCheck ( semigroupAssoc :: BoolDisjAssoc)
+-- Passed:   
+-- BoolDisj True
+-- BoolDisj False
+-- BoolDisj True
+
+-- +++ OK, passed 100 tests.
+
+-- *Purplebook> (BoolDisj True) <> (BoolDisj True)
+-- BoolDisj True
+-- *Purplebook> (BoolDisj True) <> (BoolDisj False)
+-- BoolDisj True
+
+
+-- ioString :: IO () -> String
+-- ioString x = do
+--         str1 <- x
+--         putStrLn (" printing Str1: " ++ str1)
+s = verboseCheck ( semigroupAssoc :: ThreeAssocMaybeSumInt)
+
+-- convertIOString :: IO () -> String
+-- convertIOString a = 
+
+
+-- Ex 8. data Or a b =
+-- Fst a
+-- | Snd b
+-- The Semigroup for Or should have the following behavior. We can think of it as having a “sticky” Snd value, whereby
+-- it’ll hold onto the first Snd value when and if one is passed as an argument. This is similar to the First' Monoid you
+-- wrote earlier:
+-- Prelude> Fst 1 <> Snd 2
+-- Snd 2
+-- Prelude> Fst 1 <> Fst 2
+-- Fst 2
+-- Prelude> Snd 1 <> Fst 2
+-- Snd 1
+-- Prelude> Snd 1 <> Snd 2
+-- Snd 1
+
+data Or a b =
+    Fst a
+    | Snd b deriving (Eq, Show)
+
+genOr :: (Arbitrary a, Arbitrary b) => Gen (Or a b)
+genOr = do 
+    a <- arbitrary 
+    b <- arbitrary
+    oneof [return $ Fst a,
+           return $ Snd b]
+
+instance (Arbitrary a, Arbitrary b) => Arbitrary (Or a b) where
+    arbitrary = genOr 
+
+genOrInt :: Gen (Or Int Int)
+genOrInt = genOr
+-- *MonoidsSemigroups> sample' genOrInt
+-- [Fst 0,Fst 0,Snd (-1),Snd 1,Fst (-1),Fst 4,Fst 12,Snd 2,Snd (-13),Fst (-16),Fst 0]
+
+-- instance (Semigroup a, Semigroup b) => Semigroup (Or a b ) where   
+    -- because Or is semigroup but not a b. since we are not doing a <> a' unlike in some other ones above like Two a b
+    --    so we dont need semigroup constraing on a and b. We just directly say Or is semigroup but not a and b.
+    --       becuase the true interpretation if you put Semigroup contraint menas Or and a and b are all semigroups 
+        --      but thats not the case here. 
+instance  Semigroup (Or a b ) where
+    (Fst a ) <> (Fst a') = Fst a'
+    (Fst a ) <> (Snd b') = Snd b' 
+    (Snd b ) <> (Fst a') = Snd b
+    (Snd b ) <> (Snd b') = Snd b
+     
+type OrInt =
+    (Or Int Int) -> (Or Int Int) -> (Or Int Int) -> Bool
+
+orAssocInt = quickCheck ( semigroupAssoc :: OrInt)
+-- *MonoidsSemigroups> orAssocInt
+-- +++ OK, passed 100 tests.
+
+-- *MonoidsSemigroups> verboseCheck ( semigroupAssoc :: OrInt)
+-- Passed:   
+-- Fst 91
+-- Snd 2
+-- Snd 32
+-- +++ OK, passed 100 tests.
+
+-- *MonoidsSemigroups> Fst 1 <> Snd 2
+-- Snd 2
+-- *MonoidsSemigroups> Fst 1 <> Fst 2
+-- Fst 2
+-- *MonoidsSemigroups> Snd 1 <> Fst 2
+-- Snd 1
+-- *MonoidsSemigroups> Snd 1 <> Snd 2
+-- Snd 1
+
+
+-- 9. newtype Combine a b =
+-- Combine { unCombine :: (a -> b) }
+-- What it should do:
+-- Prelude> f = Combine $ \n -> Sum (n + 1)
+-- Prelude> g = Combine $ \n -> Sum (n - 1)
+-- Prelude> unCombine (f <> g) $ 0
+-- Sum {getSum = 0}
+-- Prelude> unCombine (f <> g) $ 1
+-- Sum {getSum = 2}
+-- Prelude> unCombine (f <> f) $ 1
+-- Sum {getSum = 4}
+-- Prelude> unCombine (g <> f) $ 1
+-- Sum {getSum = 2}
+-- Hint: This function will eventually be applied to a single value of type a. But you’ll have multiple functions that can
+-- produce a value of type b. How do we combine multiple values so we have a single b? This one will probably be
+-- tricky! Remember that the type of the value inside of Combine is that of a function. The type of functions should
+-- already have an Arbitrary instance that you can reuse for testing this instance.
+
+-- small test to revist record syntax
+newtype RecordTest a = 
+    RecordTest { fieldlabel1 :: a} deriving (Eq, Show)
+record1 = RecordTest 25
+-- *MonoidsSemigroups> record1
+-- RecordTest {fieldlabel1 = 25}
+-- *MonoidsSemigroups> fieldlabel1 record1
+-- 25
+
+-- func1 :: Int -> Int 
+-- func2 :: Int -> Int
+-- func1 n = Sum (n + 1)
+-- func2 n = Sum (n + 2)
+-- val2 = (func1 + func2) $ 5
 
 
 main :: IO ()
@@ -1097,9 +1368,26 @@ main = do
     quickCheck (monoidLeftIdentity :: FstId)
     print (" Monoid Right Identity test: FstId ")
     quickCheck (monoidRightIdentity :: FstId)
-    print (" SemiGroup associativity test: Trivial ")
+    print (" SemiGroup Trivial associativity test:  ")
     quickCheck (semigroupAssoc :: TrivAssoc)
+    print (" SemiGroup Identity a associativity test: Sum Int")
+    quickCheck ( semigroupAssoc :: IdAssocSumInt)
+    print (" SemiGroup Identity a associativity test: String")
+    quickCheck ( semigroupAssoc :: IdAssocString)
+    print (" SemiGroup Two a b associativity test: Sum Int")
+    quickCheck ( semigroupAssoc :: TwoAssocSumInt)
+    print (" SemiGroup Two a b associativity test: Prod Int")
+    quickCheck ( semigroupAssoc :: TwoAssocProdInt)
+    print (" SemiGroup Three a b c associativity test: Sum Int")
+    quickCheck ( semigroupAssoc :: ThreeAssocSumInt)
+    print (" SemiGroup Three a b c associativity test: Product Int")
+    quickCheck ( semigroupAssoc :: ThreeAssocMaybeSumInt)
+    print (" SemiGroup Or a b  associativity test: Int")
+    quickCheck ( semigroupAssoc :: OrInt)
 
+    
+    -- putStrLn s
+    -- sgIdAssocSumInt
     -- verboseCheck monoidAssoc
     -- putStrLn ("QuickCheck associativity  = " ++ show(quickcheck1))
     -- if first3 == First {getFirst = Nothing}
