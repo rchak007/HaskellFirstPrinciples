@@ -1,4 +1,6 @@
 
+{-# LANGUAGE FlexibleContexts #-}
+
 module MonoidsSemigroups where
 
 -- import Data.Semigroup as S     -- Since Data.Monid is already imported seems this one is not needed or creating conflict
@@ -8,6 +10,10 @@ import Data.Monoid hiding ((<>))
 import Data.List as L
 
 import Test.QuickCheck
+-- import Test.QuickCheck.Poly as QP
+
+import Text.Show.Functions 
+import Test.QuickCheck.Poly
 import Control.Monad
 
 import Data.Coerce
@@ -603,8 +609,8 @@ monoidAssoc :: (Eq m, Monoid m)
 monoidAssoc a b c =
             (a <> (b <> c)) == ((a <> b) <> c)
 type S = String
-type B = Bool
-type MA = S -> S -> S -> B
+type Bol = Bool
+type MA = S -> S -> S -> Bol
 
 quickcheck1 :: IO ()
 quickcheck1 = quickCheck (monoidAssoc :: MA)   -- +++ OK, passed 100 tests.
@@ -612,13 +618,13 @@ quickcheck1 = quickCheck (monoidAssoc :: MA)   -- +++ OK, passed 100 tests.
 -- +++ OK, passed 100 tests.
 
 type S' = Sum Int
-type MA' = S' -> S' -> S' -> B
+type MA' = S' -> S' -> S' -> Bol
 quickcheck2 = quickCheck (monoidAssoc :: MA')
 -- *Purplebook> quickcheck2
 -- +++ OK, passed 100 tests.
 
 type Bl = BlockChain Integer
-type MABl = Bl -> Bl -> Bl -> B
+type MABl = Bl -> Bl -> Bl -> Bol
 quickcheck3 = quickCheck (monoidAssoc :: MABl)
 -- *Purplebook> quickcheck3
 -- +++ OK, passed 100 tests.
@@ -1299,11 +1305,274 @@ record1 = RecordTest 25
 -- *MonoidsSemigroups> fieldlabel1 record1
 -- 25
 
--- func1 :: Int -> Int 
--- func2 :: Int -> Int
--- func1 n = Sum (n + 1)
--- func2 n = Sum (n + 2)
--- val2 = (func1 + func2) $ 5
+func1 :: Int -> Int 
+func2 :: Int -> Int
+func1 n = n + 1
+func2 n = n + 2
+
+val0 :: (Int -> Int) -> (Int -> Int) -> Int -> Int
+val0 f1 f2 i = f1 (f2 i)
+
+preVal0 = val0 func1 func2
+-- *MonoidsSemigroups> preVal0 25
+-- 28
+val2 = (func1) (func2 5)
+-- *MonoidsSemigroups> val2
+-- 8
+
+newtype Combine a b =
+    Combine { unCombine :: (a -> b) }
+
+instance Show (Combine a b) where      -- can show a function so you should intialize something random so it does not complain of lack of Show
+    show f = "Unicorns!!"
+
+fCmb = Combine $ \n -> Sum (n + 1)
+fSumCmb1 = Combine $ \(Sum n) -> Sum (n + 1)
+gCmb = Combine $ \n -> Sum (n - 1)
+-- *MonoidsSemigroups> (unCombine fCmb) 2
+-- Sum {getSum = 3}
+ufCmb = (unCombine fCmb)
+ugCmb = (unCombine gCmb)
+totCmb = ufCmb (ugCmb 7)
+-- *MonoidsSemigroups> totCmb
+-- Sum {getSum = Sum {getSum = 7}}
+valFSumCmb1 = (unCombine fSumCmb1) (Sum 25)
+-- *MonoidsSemigroups> valFSumCmb1
+-- Sum {getSum = 26}
+
+
+
+-- tot2Cmb = ufCmb (getSum (ugCmb 7))
+-- *MonoidsSemigroups> totCmb
+-- Sum {getSum = Sum {getSum = 7}}
+
+
+-- https://stackoverflow.com/questions/50629967/is-it-possible-to-generate-arbitrary-functions-in-quickcheck
+-- https://www.youtube.com/watch?v=CH8UQJiv9Q4
+
+-- genCombine :: (Arbitrary a, Arbitrary b) => Gen (Combine a b) 
+-- genCombine = do
+--     a <- arbitrary 
+--     b <- arbitrary
+--     return (Combine (a -> b))
+
+-- since i dont need unpack the Combine just f was fine.
+-- below solution from https://stackoverflow.com/questions/44796668/semigroup-with-data-type-that-contains-function
+instance (Semigroup b) 
+  => Semigroup (Combine a b) where 
+  Combine {unCombine=f} <> Combine {unCombine=g} = Combine (f <> g)
+
+instance (CoArbitrary b, CoArbitrary a, Arbitrary a, Arbitrary b) => Arbitrary (Combine a b) where
+    arbitrary = do
+        f <- Test.QuickCheck.arbitrary
+        return (Combine f)
+
+
+
+combineAssoc :: (Semigroup b, Eq b) => a -> Combine a b -> Combine a b -> Combine a b -> Bool
+combineAssoc v a b c = (unCombine (a <> (b <> c)) $ v) == (unCombine ((a <> b) <> c) $ v)
+
+type CombineSumIntTest =
+     Sum Int -> Combine (Sum Int) (Sum Int) -> Combine (Sum Int) (Sum Int) -> Combine (Sum Int) (Sum Int) -> Bool
+
+combineAssocSumInt = quickCheck ( combineAssoc :: CombineSumIntTest)
+-- *MonoidsSemigroups> combineAssocSumInt
+-- +++ OK, passed 100 tests.
+
+
+-- *MonoidsSemigroups> f = Combine $ \n -> Sum (n + 1)
+-- *MonoidsSemigroups> g = Combine $ \n -> Sum (n - 1)
+-- *MonoidsSemigroups> unCombine (f <> g) $ 0
+-- Sum {getSum = 0}
+-- *MonoidsSemigroups> unCombine (f <> g) $ 1
+-- Sum {getSum = 2}
+-- *MonoidsSemigroups> unCombine (f <> f) $ 1
+-- Sum {getSum = 4}
+-- *MonoidsSemigroups> unCombine (g <> f) $ 1
+-- Sum {getSum = 2}
+
+
+-- smVal1 = unCombine (fCmb <> gCmb) $ 0
+
+-- instance  Semigroup (Combine a b ) where
+--     Combine (a -> b)  <> Combine (a' -> b')   =   Combine (a -> b')
+-- -- instance  Semigroup (Combine a b ) where
+-- --     unCombine :: (a -> b)  <> unCombine (Combine (a' b'))  = (unCombine ((Combine a b)))  UnCombine (Combine a' b')
+
+
+
+-- 10. newtype Comp a =
+-- Comp { unComp :: (a -> a) }
+-- Hint: We can do something that seems a little more specific and natural to functions now that the input and
+-- output types are the same.
+newtype Comp a =
+    Comp { unComp :: (a -> a) } 
+-- instance Semigroup (Comp a ) where 
+--   Comp {unComp=f} <> Comp {unComp=g} = Comp f
+
+instance Show (Comp a) where      -- can show a function so you should intialize something random so it does not complain of lack of Show
+    show f = "Unicorns!!"
+
+instance (Semigroup a) => Semigroup (Comp a) where
+    (Comp fx) <> (Comp fy) = Comp (fx . fy)
+
+-- Arbitrary instance which has function  
+-- solution from - https://stackoverflow.com/questions/47849407/coarbitrary-in-haskell
+instance (CoArbitrary a, Arbitrary a) => Arbitrary (Comp a) where
+    arbitrary = do
+        f <- Test.QuickCheck.arbitrary
+        return (Comp f)
+
+-- -- Arbitrary instance which has function -- can also do genComp like how i did and call that.. 
+-- instance (CoArbitrary a, Arbitrary a) => Arbitrary (Comp a) where
+--     arbitrary = genComp
+
+genComp :: (Arbitrary a, CoArbitrary a) => Gen (Comp a)
+genComp = do 
+    f <- Test.QuickCheck.arbitrary 
+    return (Comp f)
+
+
+-- *MonoidsSemigroups> :t fComposition1
+-- fComposition1 :: Integer -> Integer
+
+fFunc1 = \n -> (n + 1)
+fFunc2 = \n -> (n + 1)
+fComposition1 = fFunc1.fFunc2
+-- *MonoidsSemigroups> fComposition1 5
+-- 7
+-- *MonoidsSemigroups> :t fComposition1
+-- fComposition1 :: Integer -> Integer
+
+fCurry1 i = (fFunc1) ((fFunc2) i) 
+-- *MonoidsSemigroups> :t fCurry1
+-- fCurry1 :: Integer -> Integer
+
+
+
+fSumFunc1 :: Sum Int -> Sum Int
+fSumFunc1 (Sum n) = Sum n + Sum 1
+
+fSumFunc2 :: Sum Int -> Sum Int
+fSumFunc2 (Sum n) = Sum n + Sum 2
+
+
+-- smValCmp = fCmp3 <> fCmp4
+valFCompFunc1 = fSumFunc1 (Sum 25)
+-- *MonoidsSemigroups> valFCompFunc1
+-- Sum {getSum = 26}
+
+fComp1 :: Comp (Sum Int)
+fComp1 = Comp (fSumFunc1)
+
+fComp2 :: Comp (Sum Int)
+fComp2 = Comp (fSumFunc2)
+
+fComp3 = fComp1 <> fComp2
+valFComp3 = (unComp fComp3) (Sum 47)
+
+-- type CompSumIntTest =
+--      (Comp (Sum Int -> Sum Int)) -> (Comp (Sum Int -> Sum Int)) -> (Comp (Sum Int -> Sum Int)) -> Bool
+type CompSumIntTest =
+     Sum Int -> Comp (Sum Int)  -> Comp (Sum Int) -> Comp (Sum Int) -> Bool
+
+compAssoc :: (Semigroup a, Eq a) => a -> Comp a -> Comp a -> Comp a -> Bool
+compAssoc v a b c = (unComp (a <> (b <> c)) $ v) == (unComp ((a <> b) <> c) $ v)
+
+
+compAssocSumInt = quickCheck ( compAssoc :: CompSumIntTest)
+
+-- compSemigroupAssoc :: (Sum Int -> Sum Int) -> (Sum Int -> Sum Int) -> (Sum Int -> Sum Int) -> Bool
+-- compSemigroupAssoc (Fun _ f1) (Fun _ f2) (Fun _ f3) =
+--     (Comp (f1) <> (Comp (f2) <> Comp (f3))) == ((Comp (f1) <> Comp (f2)) <> Comp (f3))
+
+
+-- semigroupAssoc :: (Eq m, Semigroup m)
+--     => m -> m -> m -> Bool
+-- semigroupAssoc a b c =
+--     (a <> (b <> c)) == ((a <> b) <> c)
+
+
+-- f3 :: Comp (Int -> Int)
+-- f3 = fCmp1 <> fCmp2
+
+-- type CompIntTest =
+--     (Comp (Int -> Int)) -> (Comp (Int -> Int)) -> Int -> Int
+-- smvalUnCompfCmp1 :: CompIntTest
+-- smvalUnCompfCmp1 c1 c2 i = (unComp ((c1 <> c2))) i
+
+-- valCmp = unComp fCmp2 ((unComp fCmp1) 5 )
+
+-- valCmp1 = unComp(fCmp1 <> fCmp2) $ 1
+
+
+-- Shrinking and showing Functions Using QuickCheck
+-- https://www.youtube.com/watch?v=CH8UQJiv9Q4
+
+-- see /Users/chakravartiraghavan/Documents/Typora1/Blockchain/CardanoTraining/Haskell/Projects/projectTesting/MapFilter.hs
+
+
+-- 11. Look familiar?
+-- data Validation a b =
+-- Failure a | Success b
+-- deriving (Eq, Show)
+-- instance Semigroup a =>
+-- Semigroup (Validation a b) where
+-- (<>) = undefined
+-- main = do
+-- let failure :: String
+-- -> Validation String Int
+-- failure = Failure
+-- success :: Int
+-- -> Validation String Int
+-- success = Success
+-- print $ success 1 <> failure "blah"
+-- print $ failure "woot" <> failure "blah"
+-- print $ success 1 <> success 2
+-- print $ failure "woot" <> success 2
+-- You should get this output:
+-- Prelude> main
+-- Success 1
+-- Failure "wootblah"
+-- Success 1
+-- Success 2
+
+data Validation a b =
+    Failure' a | Success' b
+    deriving (Eq, Show)
+
+instance Semigroup a =>
+    Semigroup (Validation a b) where
+    Failure' a <> Failure' a' = Failure' (a <> a')
+    Success' b <> Success' b' = Success' b
+    Success' b <> Failure' a = Success' b
+    Failure' a <> Success' b = Success' b
+
+genValidation :: (Arbitrary a, Arbitrary b) => Gen (Validation a b) 
+genValidation = do 
+    a <- arbitrary
+    b <- arbitrary
+    oneof [return $ Failure' a,
+           return $ Success' b] 
+
+
+instance (Arbitrary a, Arbitrary b) => Arbitrary (Validation a b) where
+    arbitrary = genValidation
+
+type ValidationStringInt =
+    (Validation String Int) -> (Validation String Int) -> (Validation String Int) -> Bool
+
+validationAssocStringInt = quickCheck ( semigroupAssoc :: ValidationStringInt)
+
+-- Success' 1
+-- Failure' "wootblah"
+-- Success' 1
+-- Success' 2
+
+
+-- Monoid exercises
+
+
 
 
 main :: IO ()
@@ -1384,7 +1653,18 @@ main = do
     quickCheck ( semigroupAssoc :: ThreeAssocMaybeSumInt)
     print (" SemiGroup Or a b  associativity test: Int")
     quickCheck ( semigroupAssoc :: OrInt)
-
+    print (" SemiGroup Validation a b  associativity test: String Int")
+    quickCheck ( semigroupAssoc :: ValidationStringInt)
+    let failure :: String
+            -> Validation String Int
+        failure = Failure'
+        success :: Int
+            -> Validation String Int
+        success = Success'
+    print $ success 1 <> failure "blah"
+    print $ failure "woot" <> failure "blah"
+    print $ success 1 <> success 2
+    print $ failure "woot" <> success 2
     
     -- putStrLn s
     -- sgIdAssocSumInt

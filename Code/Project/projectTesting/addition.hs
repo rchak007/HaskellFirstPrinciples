@@ -1,7 +1,15 @@
+{-# LANGUAGE ScopedTypeVariables #-}
+
+
 module Addition where
+
+import MapFilter
 import Test.Hspec
 import Test.QuickCheck
 import Test.Hspec.QuickCheck (prop)
+
+import Text.Show.Functions 
+import Test.QuickCheck.Poly
 
 sayHello :: IO ()
 sayHello = putStrLn "hello!"
@@ -518,6 +526,11 @@ propRandomFunc i = (i + 7) > (i + 5)
 -- +++ OK, passed 100 tests.
 
 -- 14.7 Chapter exercises
+
+
+
+
+
 
 
 
