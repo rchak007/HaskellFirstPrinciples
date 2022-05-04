@@ -3,11 +3,14 @@
 
 module MonoidsSemigroups where
 
--- import Data.Semigroup as S     -- Since Data.Monid is already imported seems this one is not needed or creating conflict
+-- import Data.Semigroup as S     -- Since Data.Monoid is already imported seems this one is not needed or creating conflict
+import Data.Semigroup (stimes)   -- only import stimes
 import Data.List.NonEmpty as N
     ( length, tail, head, NonEmpty((:|)) )
 import Data.Monoid hiding ((<>))
 import Data.List as L
+
+
 
 import Test.QuickCheck
 -- import Test.QuickCheck.Poly as QP
@@ -669,6 +672,7 @@ monoidRightIdentity :: (Eq m, Monoid m)
                    -> Bool
 monoidRightIdentity a = (a <> mempty) == a
 mli = monoidLeftIdentity
+
 mri = monoidRightIdentity
 
 -- *Purplebook> quickCheck (mli :: String -> Bool)
@@ -936,6 +940,11 @@ data Trivial = Trivial deriving (Eq, Show)
 instance Semigroup Trivial where
     Trivial <> Trivial = Trivial
 
+instance Monoid Trivial where
+    mempty = Trivial
+    mappend = (<>)
+
+
 instance Arbitrary Trivial where
     arbitrary = return Trivial
 
@@ -959,6 +968,16 @@ sgTrvAssoc = quickCheck ( semigroupAssoc :: TrivAssoc)
 -- https://stackoverflow.com/questions/39232294/how-to-write-a-semigroup-instance
 
 
+-- Already declared before
+trvMli = monoidLeftIdentity
+trvMlr = monoidRightIdentity
+
+qcMli = quickCheck (trvMli :: Trivial -> Bool)
+qcMlr = quickCheck (trvMlr :: Trivial -> Bool)
+-- *MonoidsSemigroups> qcMli
+-- +++ OK, passed 100 tests.
+-- *MonoidsSemigroups> qcMlr
+-- +++ OK, passed 100 tests.
 
 
 
@@ -983,6 +1002,18 @@ identityGenInt = genIdentity
 
 instance Semigroup a => Semigroup (Identity a) where
     Identity a <> Identity a' = Identity (a <> a')
+
+-- instance Semigroup a => Monoid (Identity a) where
+--     mempty = (Identity a')
+--     mappend mempty (Identity a) = Identity a
+--     mappend (Identity a) mempty = Identity a
+
+-- -- because 'a' is monoid it has mempty - also we give Monoid Constraint as only that has mempty and Semigroup constrain would not work.
+instance Monoid a => Monoid (Identity a) where
+    mempty = Identity mempty         
+    mappend = (<>)
+
+
 instance Arbitrary a => Arbitrary (Identity a) where
     arbitrary = genIdentity
 
@@ -1004,6 +1035,18 @@ sgIdAssocString = quickCheck ( semigroupAssoc :: IdAssocString)
 -- +++ OK, passed 100 tests.
 
 
+identityMli = monoidLeftIdentity
+identitytrvMlr = monoidRightIdentity
+
+qcIdMli = quickCheck (identityMli :: Identity (Sum Int) -> Bool)
+qcIdMlr = quickCheck (identitytrvMlr :: Identity (Sum Int) -> Bool)
+
+
+-- *MonoidsSemigroups> qcIdMli
+-- +++ OK, passed 100 tests.
+-- *MonoidsSemigroups> qcIdMlr
+-- +++ OK, passed 100 tests.
+
 -- Ex 3. data Two a b = Two a b
 -- Hint: Ask for another Semigroup instance.
 data Two a b = Two a b deriving (Eq, Show)
@@ -1016,6 +1059,12 @@ genTwo = do
 
 instance (Semigroup a, Semigroup b) => Semigroup (Two a b) where
     (Two a b) <> (Two a' b') = Two (a <> a') (b <> b')
+
+
+
+instance (Monoid a, Monoid b) => Monoid (Two a b) where
+    mempty = Two mempty mempty
+    mappend = (<>)
 
 instance (Arbitrary a, Arbitrary b) => Arbitrary (Two a b) where
     arbitrary = genTwo
@@ -1046,6 +1095,37 @@ sgTwoAssocProductInt = quickCheck ( semigroupAssoc :: TwoAssocProdInt)
 -- Two (Product {getProduct = -3363}) (Product {getProduct = -3784})
 -- *Purplebook> Two (Product {getProduct = 59}) (Product {getProduct = -86}) <> Two (Product {getProduct = -57}) (Product {getProduct = 44})
 -- Two (Product {getProduct = -3363}) (Product {getProduct = -3784})
+
+
+
+twoMli = monoidLeftIdentity
+twoMlr = monoidRightIdentity
+
+qcTwoMli = quickCheck (twoMli :: Two (Sum Int) (Sum Int) -> Bool)
+qcTwoMlr = quickCheck (twoMlr :: Two (Sum Int) (Sum Int) -> Bool)
+-- *MonoidsSemigroups> qcTwoMli
+-- +++ OK, passed 100 tests.
+-- *MonoidsSemigroups> qcTwoMlr
+-- +++ OK, passed 100 tests.
+
+twoMliStr = monoidLeftIdentity
+qcTwoMliStr = quickCheck (twoMliStr :: Two (String) (String) -> Bool)
+-- *MonoidsSemigroups> qcTwoMliStr
+-- +++ OK, passed 100 tests.
+
+twoStr1 = Two "Rafa" "Nadal"
+twoStr2 = Two " TheGoat" " TheGreatest"
+twoStr4 = ( (Two mempty mempty ) :: Two String String)
+twoStr3 = twoStr1 <> twoStr2
+-- *MonoidsSemigroups> twoStr3
+-- Two "Rafa TheGoat" "Nadal TheGreatest"
+
+-- *MonoidsSemigroups> twoStr1 <> twoStr4
+-- Two "Rafa" "Nadal"
+
+twoStr5 = (Two mempty "djoker" ) :: Two String String
+-- *MonoidsSemigroups> twoStr5 <> twoStr1
+-- Two "Rafa" "djokerNadal"
 
 
 -- Ex 4
@@ -1321,16 +1401,40 @@ val2 = (func1) (func2 5)
 -- 8
 
 newtype Combine a b =
-    Combine { unCombine :: (a -> b) }
+    Combine { unCombine :: (a -> b) } 
 
 instance Show (Combine a b) where      -- can show a function so you should intialize something random so it does not complain of lack of Show
     show f = "Unicorns!!"
 
 fCmb = Combine $ \n -> Sum (n + 1)
+fMemptyCmbSum = Combine $ \(Sum n) -> Sum 0
+
+
 fSumCmb1 = Combine $ \(Sum n) -> Sum (n + 1)
+fSumCmb2 = Combine $ \(Sum n) -> Sum (n - 3)
+-- *MonoidsSemigroups> (unCombine fSumCmb1) (Sum 2)
+-- Sum {getSum = 3}
 gCmb = Combine $ \n -> Sum (n - 1)
 -- *MonoidsSemigroups> (unCombine fCmb) 2
 -- Sum {getSum = 3}
+ufMemptyCmbSum = unCombine fMemptyCmbSum
+-- *MonoidsSemigroups> ufMemptyCmbSum (Sum 21)
+-- Sum {getSum = 0}
+
+valRtIdComb1 = ( unCombine (fSumCmb1 <> fMemptyCmbSum) ) (Sum 21)     -- mempty keeps only fSumCmb1
+-- *MonoidsSemigroups> valRtIdComb
+-- Sum {getSum = 22}
+
+valRtIdComb2 = ( unCombine (fSumCmb2 <> fMemptyCmbSum) ) (Sum 21) 
+-- *MonoidsSemigroups> valRtIdComb2
+-- Sum {getSum = 18}
+
+
+valLtIdComb2 = ( unCombine (fMemptyCmbSum <> fSumCmb2) ) (Sum 21) 
+-- *MonoidsSemigroups> valLtIdComb2
+-- Sum {getSum = 18}
+
+
 ufCmb = (unCombine fCmb)
 ugCmb = (unCombine gCmb)
 totCmb = ufCmb (ugCmb 7)
@@ -1339,6 +1443,7 @@ totCmb = ufCmb (ugCmb 7)
 valFSumCmb1 = (unCombine fSumCmb1) (Sum 25)
 -- *MonoidsSemigroups> valFSumCmb1
 -- Sum {getSum = 26}
+
 
 
 
@@ -1362,10 +1467,17 @@ instance (Semigroup b)
   => Semigroup (Combine a b) where 
   Combine {unCombine=f} <> Combine {unCombine=g} = Combine (f <> g)
 
+instance Monoid b => Monoid (Combine a b) where
+        mempty = Combine {unCombine=f} where 
+                     f a = mempty
+
 instance (CoArbitrary b, CoArbitrary a, Arbitrary a, Arbitrary b) => Arbitrary (Combine a b) where
     arbitrary = do
         f <- Test.QuickCheck.arbitrary
         return (Combine f)
+
+-- instance Eq (Combine a b) where
+--     (==) (Combine {unCombine= f}) (Combine {unCombine=g}) = 
 
 
 
@@ -1379,6 +1491,29 @@ combineAssocSumInt = quickCheck ( combineAssoc :: CombineSumIntTest)
 -- *MonoidsSemigroups> combineAssocSumInt
 -- +++ OK, passed 100 tests.
 
+type CombineSumIntTestIdentity =
+     Sum Int -> Combine (Sum Int) (Sum Int) -> Bool
+
+combineRightIdentity :: (Monoid b, Eq b) => a -> Combine a b -> Bool
+combineRightIdentity v a = (unCombine (a <> mempty) $ v) == ((unCombine a) $ v)
+combineRightIdentitySumInt = quickCheck ( combineRightIdentity :: CombineSumIntTestIdentity)
+-- *MonoidsSemigroups> combineRightIdentitySumInt
+-- +++ OK, passed 100 tests.
+
+-- combineMonoidLeftIdentity :: (Eq m, Monoid m)
+--                    => m
+--                    -> Bool
+-- combineMonoidLeftIdentity a = ( (mempty ) <> a) == a
+-- combineMonoidRightIdentity :: (Eq m, Monoid m)
+--                    => m
+--                    -> Bool
+-- combineMonoidRightIdentity a = (a <> mempty) == a
+
+-- combineMli = combineMonoidLeftIdentity
+-- combineMlr = combineMonoidRightIdentity
+
+-- qcCombineMli = quickCheck (combineMli :: Combine (Int ) (Sum Int) -> Bool)
+-- qcCombineMlr = quickCheck (combineMli :: Combine (Int) (Sum Int) -> Bool)
 
 -- *MonoidsSemigroups> f = Combine $ \n -> Sum (n + 1)
 -- *MonoidsSemigroups> g = Combine $ \n -> Sum (n - 1)
@@ -1416,6 +1551,11 @@ instance Show (Comp a) where      -- can show a function so you should intialize
 instance (Semigroup a) => Semigroup (Comp a) where
     (Comp fx) <> (Comp fy) = Comp (fx . fy)
 
+
+instance Monoid a => Monoid (Comp a) where
+        mempty = Comp {unComp=f} where 
+                     f a = mempty
+
 -- Arbitrary instance which has function  
 -- solution from - https://stackoverflow.com/questions/47849407/coarbitrary-in-haskell
 instance (CoArbitrary a, Arbitrary a) => Arbitrary (Comp a) where
@@ -1426,7 +1566,6 @@ instance (CoArbitrary a, Arbitrary a) => Arbitrary (Comp a) where
 -- -- Arbitrary instance which has function -- can also do genComp like how i did and call that.. 
 -- instance (CoArbitrary a, Arbitrary a) => Arbitrary (Comp a) where
 --     arbitrary = genComp
-
 genComp :: (Arbitrary a, CoArbitrary a) => Gen (Comp a)
 genComp = do 
     f <- Test.QuickCheck.arbitrary 
@@ -1467,10 +1606,19 @@ fComp1 = Comp (fSumFunc1)
 
 fComp2 :: Comp (Sum Int)
 fComp2 = Comp (fSumFunc2)
+fCompMempty :: Comp (Sum Int)
+fCompMempty = mempty
 
 fComp3 = fComp1 <> fComp2
 valFComp3 = (unComp fComp3) (Sum 47)
 
+fMemptyComp1Right = fComp1 <> fCompMempty
+fMemptyComp1Left =  fCompMempty <> fComp1
+valFMemptyComp1Right = (unComp (fMemptyComp1Right)) (Sum 5)
+valFMemptyComp1Left = (unComp (fMemptyComp1Left)) (Sum 5)
+
+-- *MonoidsSemigroups> valFComp3
+-- Sum {getSum = 50}
 -- type CompSumIntTest =
 --      (Comp (Sum Int -> Sum Int)) -> (Comp (Sum Int -> Sum Int)) -> (Comp (Sum Int -> Sum Int)) -> Bool
 type CompSumIntTest =
@@ -1570,9 +1718,126 @@ validationAssocStringInt = quickCheck ( semigroupAssoc :: ValidationStringInt)
 -- Success' 2
 
 
+-- using stimes from Semigroup
+-- *MonoidsSemigroups> stimes 4 [1]
+-- [1,1,1,1]
+-- *MonoidsSemigroups> stimes 4 (Sum 25)
+-- Sum {getSum = 100}
+
 -- Monoid exercises
+-- did it with the semigroup instances since it was same data types
 
 
+-- Ex 8. This next exercise will involve doing something that will still feel a bit unnatural, and you may find it difficult. If
+-- you get it, and you haven’t done much FP or Haskell before, get yourself a nice beverage. We’re going to toss
+-- you the instance declaration, so you don’t churn on a missing Monoid constraint you didn’t know you need:
+-- newtype Mem s a =
+-- Mem {
+-- runMem :: s -> (a,s)
+-- }
+-- instance Semigroup a => Semigroup (Mem s a) where
+-- (<>) = undefined
+-- instance Monoid a => Monoid (Mem s a) where
+-- mempty = undefined
+-- Given the following code:
+-- f' = Mem $ \s -> ("hi", s + 1)
+-- main = do
+-- let rmzero = runMem mempty 0
+-- rmleft = runMem (f' <> mempty) 0
+-- rmright = runMem (mempty <> f') 0
+-- print $ rmleft
+-- print $ rmright
+-- print $ (rmzero :: (String, Int))
+-- print $ rmleft == runMem f' 0
+-- print $ rmright == runMem f' 0
+
+-- A correct Monoid for Mem should, given the above code,
+-- produce the following output:
+-- Prelude> main
+-- ("hi",1)
+-- ("hi",1)
+
+-- ("",0)
+-- True
+-- True
+
+
+-- Make certain your instance has output like the above, as this is sanity checking the Monoid identity laws for you! It’s
+-- not a proof, and it’s not even as good as property testing, but it’ll catch the most common mistakes people make.
+-- It’s not a trick, and you don’t need a Monoid for s. Yes, such a Monoid can and does exist. Hint: chain the s values
+-- from one function to the other. You’ll want to check the identity laws, as a common first attempt will break them.
+
+newtype Mem s a =
+    Mem {
+        runMem :: s -> (a,s)
+    }
+
+instance Show (Mem s a) where      -- can show a function so you should intialize something random so it does not complain of lack of Show
+    show f = "Unicorns!!"
+
+instance Semigroup a => Semigroup (Mem s a) where
+    Mem {runMem = f } <> Mem {runMem = g } = Mem { runMem = h} where
+                        h s = (( fst (f s) <> fst (g s) ), snd (f (snd (g s))))
+
+instance Monoid a => Monoid (Mem s a) where
+        mempty = Mem {runMem=f} where 
+                        f s = (mempty, s)
+
+
+f' = Mem $ \s -> ("hi", s + 1)
+rmzero = runMem ( mempty :: Mem Int String) 0
+rmleft = runMem (f' <> mempty) 0
+rmright = runMem (mempty <> f') 0
+
+-- *MonoidsSemigroups> rmleft
+-- ("hi",1)
+-- *MonoidsSemigroups> rmright
+-- ("hi",1)
+-- *MonoidsSemigroups> rmzero
+-- ("",0)
+-- *MonoidsSemigroups> rmleft == runMem f' 0
+-- True
+-- *MonoidsSemigroups> rmright == runMem f' 0
+-- True
+
+
+-- snd ((runMem (Mem {runMem = f }) s)) <> snd ((runMem (Mem {runMem = g }) s)) =    
+--                   where                     
+--                       g s = ( (a' :: a) , s' :: s)
+--                       f s = ( a, s ) 
+--                       f s' = ( _ , s'')
+--                       h'' s = ( ( a<>a'), s'' )
+
+
+-- (runMem (f' <> f2') ) 5 =     (s <> s', 10) == runMem ()
+
+
+-- instance Monoid a => Monoid (Mem s a) where
+-- mempty = undefined
+
+-- instance (Semigroup b) 
+--   => Semigroup (Combine a b) where 
+--   Combine {unCombine=f} <> Combine {unCombine=g} = Combine (f <> g)
+
+
+
+f2' = Mem $ \s -> (" Rafa", s + 4)
+
+-- *MonoidsSemigroups> (runMem (f' <> f2') 24)
+-- ("hi Rafa",29)
+
+f'Val1 = (runMem (f')) 5
+-- *MonoidsSemigroups> f'Val1
+-- ("hi",6)
+-- *MonoidsSemigroups> "hi" <> " Rafa"
+-- "hi Rafa"
+
+
+--- techincally for mappend i want - 
+-- (runMem (f' <> f2') ) 5 =     ("hi Rafa", 10) == runMem ()
+
+
+aTup1 = (1,2)
 
 
 main :: IO ()
@@ -1617,6 +1882,10 @@ main = do
     quickCheck (monoidAssoc :: MA)
     quickCheck (mli :: String -> Bool)
     quickCheck (mri :: String -> Bool)
+    print (" Monoid Left Identity test: Trivial ")
+    quickCheck (trvMli :: Trivial -> Bool)
+    print (" Monoid right Identity test: Trivial ")
+    quickCheck (trvMlr :: Trivial -> Bool)
     let ma = monoidAssoc
         mli1 = monoidLeftIdentity
         mri1 = monoidRightIdentity
@@ -1665,6 +1934,14 @@ main = do
     print $ failure "woot" <> failure "blah"
     print $ success 1 <> success 2
     print $ failure "woot" <> success 2
+    let rmzero = runMem mempty 0
+        rmleft = runMem (f' <> mempty) 0
+        rmright = runMem (mempty <> f') 0
+    print $ rmleft
+    print $ rmright
+    print $ (rmzero :: (String, Int))
+    print $ rmleft == runMem f' 0
+    print $ rmright == runMem f' 0
     
     -- putStrLn s
     -- sgIdAssocSumInt
